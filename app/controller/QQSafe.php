@@ -10,7 +10,6 @@ use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Exception\BadResponseException;
 use think\facade\Request;
 use think\response\Json;
-
 class QQSafe
 {
     protected Client $client;
@@ -256,7 +255,7 @@ class QQSafe
         ]);
     }
 
-    public function bannedList()
+    public function bannedList(): Json
     {
         $params = Request::only(['openid', 'access_token', 'code']);
         if (empty($params['openid']) || empty($params['access_token'])) {
@@ -275,6 +274,32 @@ class QQSafe
         return Response::json(0, '获取成功', $data['data']);
     }
 
+    public function report(): Json
+    {
+        $params = Request::only(['openid', 'access_token', 'user_id']);
+        if (empty($params['openid']) || empty($params['access_token'])) {
+            return Response::json(-1, '缺少参数');
+        }
+        $cookie = CookieJar::fromArray([
+            'openid' => $params['openid'],
+            'access_token' => $params['access_token'],
+        ], '.qq.com');
+        $response = $this->client->request('GET', 'https://wx.gamesafe.qq.com/api/plat/user_report', [
+            'query' => [
+                'user_id' => $params['user_id'],
+            ],
+            'headers' => [
+                'user-agent' => 'MicroMessenger',
+            ],
+            'cookies'  => $cookie,
+        ]);
+        $result = $response->getBody()->getContents();
+        $data = json_decode($result, true);
+        if ($data['ret'] != 0) {
+            return Response::json(-1, '获取失败: ' . $data['message']);
+        }
+        return Response::json(0, '获取成功', $data['data']);
+    }
 
     private function getCookieValue($name)
     {
